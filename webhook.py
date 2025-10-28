@@ -60,6 +60,18 @@ def is_port_available(port):
         except OSError:
             return False
 
+tunnel_processes = []
+
+def shutdown_server():
+    print(f"\n{YELLOW}[!] Shutting down server due to timer...{RESET}")
+    if httpd_server_instance:
+        httpd_server_instance.shutdown()
+    for p in tunnel_processes:
+        if p.poll() is None: # If process is still running
+            p.terminate()
+            p.wait()
+    sys.exit(0)
+
 # auto-detect missing binaries 
 def require_binary(binary_name, install_hint=None):
     """Check if a binary exists. If not, print install instructions and exit."""
@@ -377,13 +389,10 @@ class RequestHandler(SimpleHTTPRequestHandler):
             else:
                 print(f"{status_text} - {self.requestline}", flush=True)
 
-def start_http_server(directory, port, args):
+def start_http_server(directory, httpd_server):
     os.chdir(directory)
-    handler = RequestHandler
-    with socketserver.TCPServer(('', port), handler) as httpd:
-        httpd.args = args # Pass args to the server
-        print(f"{GREEN}[+] Serving {directory} on port {port}{RESET}")
-        httpd.serve_forever()
+    print(f"{GREEN}[+] Serving {directory} on port {httpd_server.server_address[1]}{RESET}")
+    httpd_server.serve_forever()
 
 
 def start_serveo_tunnel(port):
@@ -391,12 +400,23 @@ def start_serveo_tunnel(port):
 
     print(f"{BLUE}[i] Attempting to open Serveo tunnel on port {port}...{RESET}", flush=True)
     try:
-        subprocess.run(
+        process = subprocess.Popen(
             ["ssh", "-o", "StrictHostKeyChecking=no", "-R", f"80:localhost:{port}", "serveo.net"],
-            check=True
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE
         )
-    except subprocess.CalledProcessError:
-        print(f"{YELLOW}[!] Serveo tunnel failed. Falling back to cloudflared...\n{RESET}")
+        tunnel_processes.append(process)
+        # Serveo prints the URL to stderr
+        for line in iter(process.stderr.readline, b''):
+            line = line.decode('utf-8')
+            if "Forwarding complete" in line:
+                print(f"{GREEN}[+] Serveo tunnel is live!{RESET}")
+            if "https://" in line:
+                print(f"{CYAN}[*] Public URL: {WHITE}{line.strip()}{RESET}")
+            if process.poll() is not None: # If process exited
+                break
+        # process.wait() # Removed to prevent blocking
+    except Exception as e:
+        print(f"{YELLOW}[!] Serveo tunnel failed: {e}. Falling back to cloudflared...\n{RESET}")
         start_cloudflared_tunnel(port)
 
 
@@ -405,12 +425,32 @@ def start_cloudflared_tunnel(port):
 
     print(f"{BLUE}[i] Starting cloudflared tunnel on port {port}...{RESET}", flush=True)
     try:
-        subprocess.run(
+        process = subprocess.Popen(
             ["cloudflared", "tunnel", "--url", f"http://localhost:{port}"],
-            check=True
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
         )
-    except subprocess.CalledProcessError:
-        print(f"{RED}[!] cloudflared tunnel failed. Exiting.{RESET}")
+        tunnel_processes.append(process)
+
+        # Create threads to read stdout and stderr concurrently
+        def read_stream(stream, is_stderr=False):
+            for line in iter(stream.readline, ''):
+                print(f"[cloudflared {'stderr' if is_stderr else 'stdout'}]: {line.strip()}") # Debug print
+                if "https://" in line:
+                    print(f"{GREEN}[+] Cloudflared tunnel is live!{RESET}")
+                    print(f"{CYAN}[*] Public URL: {WHITE}{line.strip().split(' ')[-1]}{RESET}")
+                    # No break here, let it continue printing other info
+
+        stdout_thread = threading.Thread(target=read_stream, args=(process.stdout,))
+        stderr_thread = threading.Thread(target=read_stream, args=(process.stderr, True))
+
+        stdout_thread.start()
+        stderr_thread.start()
+
+        # The main thread should not wait for these, as they are background processes
+        # The process itself is managed by tunnel_processes and shutdown_server
+        # process.wait() # Removed to prevent blocking
+    except Exception as e:
+        print(f"{RED}[!] cloudflared tunnel failed: {e}. Exiting.{RESET}")
         sys.exit(1)
 
 
@@ -421,7 +461,8 @@ def start_ngrok_tunnel(port):
 
     try:
         # Start ngrok in the background
-        ngrok_process = subprocess.Popen(["ngrok", "http", str(port)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        ngrok_process = subprocess.Popen(["ngrok", "http", str(port)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        tunnel_processes.append(ngrok_process)
 
         # Wait for ngrok's web interface to become available
         time.sleep(3)  # give ngrok time to start
@@ -445,7 +486,7 @@ def start_ngrok_tunnel(port):
             sys.exit(1)
 
         # Keep the process running so ngrok stays alive
-        ngrok_process.wait()
+        # ngrok_process.wait() # Removed to prevent blocking
 
     except subprocess.CalledProcessError:
         print(f"{RED}[!] ngrok tunnel failed. Exiting.{RESET}")
@@ -456,9 +497,19 @@ def start_localtunnel(port):
 
     print(f"{BLUE}[i] Starting localtunnel tunnel on port {port}...{RESET}")
     try:
-        subprocess.run(["lt", "--port", str(port)], check=True)
-    except subprocess.CalledProcessError:
-        print(f"{RED}[!] localtunnel failed. Exiting.{RESET}")
+        process = subprocess.Popen(
+            ["lt", "--port", str(port)],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+        )
+        tunnel_processes.append(process)
+        for line in iter(process.stdout.readline, ''):
+            if "your url is:" in line:
+                print(f"{GREEN}[+] LocalTunnel is live!{RESET}")
+                print(f"{CYAN}[*] Public URL: {WHITE}{line.split('your url is: ')[-1].strip()}{RESET}")
+                break
+        # process.wait() # Removed to prevent blocking
+    except Exception as e:
+        print(f"{RED}[!] localtunnel failed: {e}. Exiting.{RESET}")
         sys.exit(1)
 
 
@@ -467,8 +518,8 @@ def main():
     description="📡 Serve a local directory and expose it via a tunnel (Serveo, Cloudflared, Ngrok, LocalTunnel).",
     epilog=textwrap.dedent(f"""{CYAN}
     Examples:
-      python3 webhook.py -p 8080 --serveo
-      python3 webhook.py -p 80 -d /var/www/html --cloudflared
+      python3 webhook.py -p 8080 --serveo --exiftool -d ~/my-site -shutdown-timer 600 
+      python3 webhook.py -p 80 -d ~/my-site --cloudflared --exiftool
       python3 webhook.py -p 3000 -d ~/my-site --ngrok
       python3 webhook.py -p 8080 -d ~/my-site --localtunnel
     {RESET}"""),
@@ -477,6 +528,7 @@ def main():
   
     parser.add_argument("-p", "--port", type=int, default=80, help="Local port to serve (default: 80)")
     parser.add_argument("-d", "--directory", default=".", help="Directory to serve (default: current dir)")
+    parser.add_argument("--shutdown-timer", type=int, help="Automatically shut down after N seconds")
     
     tunnel_group = parser.add_mutually_exclusive_group(required=True)
     tunnel_group.add_argument("--serveo", action="store_true", help="Use Serveo tunnel")
@@ -495,7 +547,17 @@ def main():
         print(f"{RED}[!] Port {args.port} is already in use. Choose a different port.{RESET}")
         sys.exit(1)
     
-    threading.Thread(target=start_http_server, args=(args.directory, args.port, args), daemon=True).start()
+    global httpd_server_instance
+    handler = RequestHandler
+    httpd_server_instance = socketserver.TCPServer(('', args.port), handler)
+    httpd_server_instance.args = args # Pass args to the server
+    threading.Thread(target=start_http_server, args=(args.directory, httpd_server_instance), daemon=True).start()
+
+    if args.shutdown_timer:
+        print(f"{BLUE}[i] Server will automatically shut down in {args.shutdown_timer} seconds.{RESET}")
+        timer = threading.Timer(args.shutdown_timer, shutdown_server)
+        timer.daemon = True
+        timer.start()
 
     # Start selected tunnel
     if args.serveo:
@@ -506,6 +568,10 @@ def main():
         start_ngrok_tunnel(args.port)
     elif args.localtunnel:
         start_localtunnel(args.port)
+
+    # Keep the main thread alive until shutdown
+    while True:
+        time.sleep(1)
 
 
 if __name__ == "__main__":

