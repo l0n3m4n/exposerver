@@ -639,6 +639,13 @@ def shutdown_server(timeout):
     sys.exit(0)
 
 
+def clear_log_file():
+    with open("headers.log", "w") as f:
+        f.write("")
+    print(f"{GREEN}[+] Log file cleared.{RESET}")
+    sys.exit(0)
+
+
 class CustomHelpFormatter(argparse.RawDescriptionHelpFormatter):
     def format_help(self):
         help_text = super().format_help()
@@ -677,6 +684,7 @@ Examples:
     management_group = parser.add_argument_group('Script Management')
     management_group.add_argument("-u", "--update", action="store_true", help="Update the script from GitHub.")
     management_group.add_argument("-sl", "--save-local", action="store_true", help="Save the script to /usr/local/bin")
+    management_group.add_argument("--clear-logs", action="store_true", help="Clear the log file.")
 
     
     args = parser.parse_args()
@@ -684,6 +692,8 @@ Examples:
         update_script()
     if args.save_local:
         save_to_local_bin()
+    if args.clear_logs:
+        clear_log_file()
 
     if args.timeout:
         print(f"{YELLOW}[i] Server will automatically shut down in {args.timeout} seconds.{RESET}")
@@ -691,7 +701,7 @@ Examples:
         timer.daemon = True
         timer.start()
 
-    if not any([args.serveo, args.cloudflared, args.ngrok, args.localtunnel, args.update, args.save_local]):
+    if not any([args.serveo, args.cloudflared, args.ngrok, args.localtunnel, args.update, args.save_local, args.clear_logs]):
         parser.print_help()
         sys.exit(0)
 

