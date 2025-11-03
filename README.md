@@ -228,6 +228,6 @@ Pull requests are welcome! If you'd like to contribute tools or improvements, fe
 
 📣 Disclaimer
 
-This tool is provided as-is for educational and lawful bug hunting and penetration testing purposes. Use it responsibly and only on systems you own or have explicit permission to test.
+This tool is provided as-is for educational, lawful bug hunting and penetration testing purposes. Use it responsibly and only on systems you own or have explicit permission to test.
 
  
