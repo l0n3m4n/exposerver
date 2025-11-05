@@ -106,7 +106,7 @@ Examples:
   - Internet access (for tunnels)
   - At least one tunneling tool installed:
       * Serveo (via SSH)
-      * cloudflared (fallback if Serveo fails)
+      * cloudflared (recommended)
       * ngrok (optional)
       * localtunnel (optional)
       * exiftool (metadata)
