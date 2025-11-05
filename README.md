@@ -109,7 +109,7 @@ Examples:
       * cloudflared (fallback if Serveo fails)
       * ngrok (optional)
       * localtunnel (optional)
-      * exiftool
+      * exiftool (metadata)
 
 ---
 
