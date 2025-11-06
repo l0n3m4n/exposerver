@@ -164,6 +164,23 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // Copy all button functionality
+    const copyAllBtn = document.getElementById('copy-all-btn');
+    copyAllBtn.addEventListener('click', () => {
+        const preElement = previewContent.querySelector('pre');
+        if (preElement) {
+            navigator.clipboard.writeText(preElement.textContent).then(() => {
+                const originalText = copyAllBtn.textContent;
+                copyAllBtn.textContent = 'Copied!';
+                setTimeout(() => {
+                    copyAllBtn.textContent = originalText;
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy text: ', err);
+            });
+        }
+    });
+
     // Log Viewer
     const logToggleBtn = document.getElementById('log-toggle-btn');
     const logViewer = document.getElementById('log-viewer');
