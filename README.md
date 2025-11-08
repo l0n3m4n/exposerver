@@ -1,5 +1,5 @@
 <h2 align="center">
-  🪝 ExpoServer
+   ExpoServer
 </h2>
 
 <p align="center">
