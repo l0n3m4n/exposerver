@@ -66,7 +66,7 @@ ___________
  |        \>    < |  |_> >  <_> )___ \\  ___/|  | \/\   /\  ___/|  | \/
 /_______  /__/\_ \|   __/ \____/____  >\___  >__|    \_/  \___  >__|   
         \/      \/|__|              \/     \/                 \/       
-     Author: l0n3m4n | Version: 1.3.0 | Tunneling local Server 
+     Author: l0n3m4n | Version: 1.3.1 | Tunneling local Server 
 
 usage: exposerver.py [-h] [-v] [-p PORT] [-d DIRECTORY] [--auth AUTH] [--timeout TIMEOUT]
                      [--serveo | --cloudflared | --ngrok | --localtunnel] [-u] [-sl]
