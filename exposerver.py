@@ -9,7 +9,6 @@ import socket
 import argparse
 import textwrap
 import requests
-import cgi 
 import time 
 import os
 import sys
@@ -18,6 +17,7 @@ import re
 import json
 import base64
 import binascii
+import io
 from urllib.parse import urlparse, parse_qs
 from http.server import SimpleHTTPRequestHandler
 from datetime import datetime
@@ -408,42 +408,101 @@ class RequestHandler(SimpleHTTPRequestHandler):
             self.wfile.write(b"404 Not Found.\n")
             return
 
-        ctype, pdict = cgi.parse_header(self.headers.get('content-type', ''))
-        if ctype == 'multipart/form-data':
-            pdict['boundary'] = bytes(pdict['boundary'], "utf-8")
-            pdict['CONTENT-LENGTH'] = int(self.headers['Content-Length'])
-            form = cgi.FieldStorage(fp=self.rfile, headers=self.headers,
-                                    environ={'REQUEST_METHOD':'POST'},
-                                    keep_blank_values=True)
+        content_type = self.headers.get('Content-Type', '')
+        if not content_type.startswith('multipart/form-data'):
+            self.send_response(400)
+            self.end_headers()
+            self.wfile.write(b"Bad Request: Expected multipart/form-data.\n")
+            return
 
-            if 'file' in form:
-                file_item = form['file']
-                original_filename = os.path.basename(file_item.filename)
-                timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-                filename = f"{timestamp}_{original_filename}"
-                
-                upload_path = os.path.join('upload', filename)
-
-                logging.debug(f"Original filename: {original_filename}")
-                logging.debug(f"Timestamp: {timestamp}")
-                logging.debug(f"Generated filename: {filename}")
-                logging.debug(f"Upload path: {upload_path}")
-
-                with open(upload_path, 'wb') as f:
-                    f.write(file_item.file.read())
-
-                self.send_response(200)
+        try:
+            # Extract boundary
+            boundary_match = re.search(r'boundary=([^;]+)', content_type)
+            if not boundary_match:
+                self.send_response(400)
                 self.end_headers()
-                self.wfile.write(f"File '{original_filename}' uploaded and saved as '{filename}'.\n".encode())
+                self.wfile.write(b"Bad Request: No boundary found in Content-Type.\n")
+                return
+            boundary = boundary_match.group(1).encode('latin-1') # Boundaries are typically latin-1 encoded
 
-                # Logging
-                logging.info(f"\n[POST] {self.client_address[0]} uploaded file: {original_filename} as {filename}")
+            content_length = int(self.headers.get('Content-Length', 0))
+            if content_length == 0:
+                self.send_response(400)
+                self.end_headers()
+                self.wfile.write(b"Bad Request: Content-Length is 0.\n")
                 return
 
-        # If not multipart/form-data or 'file' missing
-        self.send_response(400)
-        self.end_headers()
-        self.wfile.write(b"Bad Request: Expected multipart/form-data with file field.\n")
+            # Read the entire request body
+            body = self.rfile.read(content_length)
+
+            # Split by boundary
+            parts = body.split(b'--' + boundary)
+            
+            # The first part is usually empty, the last is the closing boundary
+            # We are interested in the parts in between
+            file_item = None
+            for part in parts:
+                if b'Content-Disposition: form-data;' in part and b'filename=' in part:
+                    file_item = part
+                    break
+
+            if not file_item:
+                self.send_response(400)
+                self.end_headers()
+                self.wfile.write(b"Bad Request: No file found in multipart/form-data.\n")
+                return
+
+            # Extract filename
+            filename_match = re.search(b'filename="([^"]+)"', file_item)
+            if not filename_match:
+                self.send_response(400)
+                self.end_headers()
+                self.wfile.write(b"Bad Request: Could not extract filename.\n")
+                return
+            original_filename = filename_match.group(1).decode('utf-8', errors='ignore')
+
+            # Extract file content
+            # Find the double CRLF that separates headers from content
+            headers_end = file_item.find(b'\r\n\r\n')
+            if headers_end == -1:
+                self.send_response(400)
+                self.end_headers()
+                self.wfile.write(b"Bad Request: Malformed multipart part (no header/content separator).\n")
+                return
+            
+            file_content = file_item[headers_end + 4:] # +4 for \r\n\r\n
+            
+            # Remove trailing \r\n if present (from the part boundary)
+            if file_content.endswith(b'\r\n'):
+                file_content = file_content[:-2]
+
+            timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+            filename = f"{timestamp}_{original_filename}"
+            
+            upload_path = os.path.join('upload', filename)
+
+            logging.debug(f"Original filename: {original_filename}")
+            logging.debug(f"Timestamp: {timestamp}")
+            logging.debug(f"Generated filename: {filename}")
+            logging.debug(f"Upload path: {upload_path}")
+
+            with open(upload_path, 'wb') as f:
+                f.write(file_content)
+
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(f"File '{original_filename}' uploaded and saved as '{filename}'.\n".encode())
+
+            # Logging
+            logging.info(f"\n[POST] {self.client_address[0]} uploaded file: {original_filename} as {filename}")
+            return
+
+        except Exception as e:
+            logging.error(f"Error processing POST request: {e}")
+            self.send_response(500)
+            self.end_headers()
+            self.wfile.write(f"Internal Server Error: {e}\n".encode())
+            return
 
     def log_message(self, format, *args):
         if self.path == '/logs':
@@ -463,9 +522,10 @@ class RequestHandler(SimpleHTTPRequestHandler):
 def start_http_server(directory, port, args):
     os.chdir(directory)
     handler = RequestHandler
-    with socketserver.TCPServer(('', port), handler) as httpd:
+    bind_address = "127.0.0.1" if args.single_host else "0.0.0.0"
+    with socketserver.TCPServer((bind_address, port), handler) as httpd:
         httpd.args = args 
-        print(f"{GREEN}[+] Serving {directory} on port {port}{RESET}")
+        print(f"{GREEN}[+] Serving {directory} on {bind_address}:{port}{RESET}")
         httpd.serve_forever()
 
 
@@ -682,6 +742,7 @@ Examples:
     parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose output.")
     parser.add_argument("-p", "--port", type=int, default=80, help="Local port to serve (default: 80)")
     parser.add_argument("-d", "--directory", default=".", help="Directory to serve (default: .)")
+    parser.add_argument("-s", "--single-host", action="store_true", help="Serve only on localhost (127.0.0.1).")
     parser.add_argument("--auth", help="Enable basic authentication (format: username:password)")
     parser.add_argument("-t", "--timeout", type=int, help="Automatically shut down the server after a specified time in seconds.")
 
