@@ -741,7 +741,11 @@ Examples:
   
     parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose output.")
     parser.add_argument("-p", "--port", type=int, default=80, help="Local port to serve (default: 80)")
-    parser.add_argument("-d", "--directory", default=".", help="Directory to serve (default: .)")
+    
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("-d", "--directory", default=".", help="Directory to serve (default: .)")
+    group.add_argument("-f", "--file", help="Serve a single file.")
+
     parser.add_argument("-s", "--single-host", action="store_true", help="Serve only on localhost (127.0.0.1).")
     parser.add_argument("--auth", help="Enable basic authentication (format: username:password)")
     parser.add_argument("-t", "--timeout", type=int, help="Automatically shut down the server after a specified time in seconds.")
@@ -760,6 +764,23 @@ Examples:
 
     
     args = parser.parse_args()
+
+    # Handle single file serving
+    if args.file:
+        if not os.path.exists(args.file):
+            print(f"{RED}[!] Error: File not found: {args.file}{RESET}")
+            sys.exit(1)
+        if os.path.isdir(args.file):
+            print(f"{RED}[!] Error: --file expects a file, but a directory was provided: {args.file}{RESET}")
+            sys.exit(1)
+        
+        args.single_file_to_serve = os.path.basename(args.file)
+        args.directory = os.path.dirname(os.path.abspath(args.file))
+        print(f"{BLUE}[i] Serving single file: {args.single_file_to_serve} from directory: {args.directory}{RESET}")
+    else:
+        args.single_file_to_serve = None
+        args.directory = os.path.abspath(args.directory) # Ensure directory is absolute
+
     if args.update:
         update_script()
     if args.save_local:
