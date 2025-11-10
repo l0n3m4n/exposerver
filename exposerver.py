@@ -9,7 +9,6 @@ import socket
 import argparse
 import textwrap
 import requests
-import cgi 
 import time 
 import os
 import sys
@@ -18,6 +17,7 @@ import re
 import json
 import base64
 import binascii
+import io
 from urllib.parse import urlparse, parse_qs
 from http.server import SimpleHTTPRequestHandler
 from datetime import datetime
@@ -48,7 +48,7 @@ ___________
  |        \>    < |  |_> >  <_> )___ \\  ___/|  | \/\   /\  ___/|  | \/
 /_______  /__/\_ \|   __/ \____/____  >\___  >__|    \_/  \___  >__|   
         \/      \/|__|              \/     \/                 \/       
-     Author: l0n3m4n | Version: 1.3.0 | Tunneling local Server 
+     Author: l0n3m4n | Version: 1.3.1 | Tunneling local Server 
 {RESET}"""
     print(banner)
 
@@ -175,6 +175,33 @@ class RequestHandler(SimpleHTTPRequestHandler):
         if not self.is_authenticated():
             self.wfile.write(b'Unauthorized')
             return
+        
+        # Handle single file serving
+        if hasattr(self.server.args, 'single_file_to_serve') and self.server.args.single_file_to_serve:
+            target_file = self.server.args.single_file_to_serve
+            # If the request is for the root or the exact filename, serve the file
+            if self.path == '/' or self.path == f'/{target_file}':
+                file_path = os.path.join(self.server.args.directory, target_file)
+                if os.path.exists(file_path) and os.path.isfile(file_path):
+                    try:
+                        with open(file_path, 'rb') as f:
+                            self.send_response(200)
+                            self.send_header('Content-type', self.guess_type(file_path))
+                            self.send_header('Content-Length', str(os.path.getsize(file_path)))
+                            self.end_headers()
+                            self.wfile.write(f.read())
+                        return
+                    except Exception as e:
+                        logging.error(f"Error serving single file {file_path}: {e}")
+                        self.send_error(500, f"Error serving file: {e}")
+                        return
+                else:
+                    self.send_error(404, "File not found")
+                    return
+            else:
+                self.send_error(404, "Not Found")
+                return
+
         if self.path == '/logs':
             try:
                 with open('headers.log', 'r') as f:
@@ -408,42 +435,101 @@ class RequestHandler(SimpleHTTPRequestHandler):
             self.wfile.write(b"404 Not Found.\n")
             return
 
-        ctype, pdict = cgi.parse_header(self.headers.get('content-type', ''))
-        if ctype == 'multipart/form-data':
-            pdict['boundary'] = bytes(pdict['boundary'], "utf-8")
-            pdict['CONTENT-LENGTH'] = int(self.headers['Content-Length'])
-            form = cgi.FieldStorage(fp=self.rfile, headers=self.headers,
-                                    environ={'REQUEST_METHOD':'POST'},
-                                    keep_blank_values=True)
+        content_type = self.headers.get('Content-Type', '')
+        if not content_type.startswith('multipart/form-data'):
+            self.send_response(400)
+            self.end_headers()
+            self.wfile.write(b"Bad Request: Expected multipart/form-data.\n")
+            return
 
-            if 'file' in form:
-                file_item = form['file']
-                original_filename = os.path.basename(file_item.filename)
-                timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-                filename = f"{timestamp}_{original_filename}"
-                
-                upload_path = os.path.join('upload', filename)
-
-                logging.debug(f"Original filename: {original_filename}")
-                logging.debug(f"Timestamp: {timestamp}")
-                logging.debug(f"Generated filename: {filename}")
-                logging.debug(f"Upload path: {upload_path}")
-
-                with open(upload_path, 'wb') as f:
-                    f.write(file_item.file.read())
-
-                self.send_response(200)
+        try:
+            # Extract boundary
+            boundary_match = re.search(r'boundary=([^;]+)', content_type)
+            if not boundary_match:
+                self.send_response(400)
                 self.end_headers()
-                self.wfile.write(f"File '{original_filename}' uploaded and saved as '{filename}'.\n".encode())
+                self.wfile.write(b"Bad Request: No boundary found in Content-Type.\n")
+                return
+            boundary = boundary_match.group(1).encode('latin-1') # Boundaries are typically latin-1 encoded
 
-                # Logging
-                logging.info(f"\n[POST] {self.client_address[0]} uploaded file: {original_filename} as {filename}")
+            content_length = int(self.headers.get('Content-Length', 0))
+            if content_length == 0:
+                self.send_response(400)
+                self.end_headers()
+                self.wfile.write(b"Bad Request: Content-Length is 0.\n")
                 return
 
-        # If not multipart/form-data or 'file' missing
-        self.send_response(400)
-        self.end_headers()
-        self.wfile.write(b"Bad Request: Expected multipart/form-data with file field.\n")
+            # Read the entire request body
+            body = self.rfile.read(content_length)
+
+            # Split by boundary
+            parts = body.split(b'--' + boundary)
+            
+            # The first part is usually empty, the last is the closing boundary
+            # We are interested in the parts in between
+            file_item = None
+            for part in parts:
+                if b'Content-Disposition: form-data;' in part and b'filename=' in part:
+                    file_item = part
+                    break
+
+            if not file_item:
+                self.send_response(400)
+                self.end_headers()
+                self.wfile.write(b"Bad Request: No file found in multipart/form-data.\n")
+                return
+
+            # Extract filename
+            filename_match = re.search(b'filename="([^"]+)"', file_item)
+            if not filename_match:
+                self.send_response(400)
+                self.end_headers()
+                self.wfile.write(b"Bad Request: Could not extract filename.\n")
+                return
+            original_filename = filename_match.group(1).decode('utf-8', errors='ignore')
+
+            # Extract file content
+            # Find the double CRLF that separates headers from content
+            headers_end = file_item.find(b'\r\n\r\n')
+            if headers_end == -1:
+                self.send_response(400)
+                self.end_headers()
+                self.wfile.write(b"Bad Request: Malformed multipart part (no header/content separator).\n")
+                return
+            
+            file_content = file_item[headers_end + 4:] # +4 for \r\n\r\n
+            
+            # Remove trailing \r\n if present (from the part boundary)
+            if file_content.endswith(b'\r\n'):
+                file_content = file_content[:-2]
+
+            timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+            filename = f"{timestamp}_{original_filename}"
+            
+            upload_path = os.path.join('upload', filename)
+
+            logging.debug(f"Original filename: {original_filename}")
+            logging.debug(f"Timestamp: {timestamp}")
+            logging.debug(f"Generated filename: {filename}")
+            logging.debug(f"Upload path: {upload_path}")
+
+            with open(upload_path, 'wb') as f:
+                f.write(file_content)
+
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(f"File '{original_filename}' uploaded and saved as '{filename}'.\n".encode())
+
+            # Logging
+            logging.info(f"\n[POST] {self.client_address[0]} uploaded file: {original_filename} as {filename}")
+            return
+
+        except Exception as e:
+            logging.error(f"Error processing POST request: {e}")
+            self.send_response(500)
+            self.end_headers()
+            self.wfile.write(f"Internal Server Error: {e}\n".encode())
+            return
 
     def log_message(self, format, *args):
         if self.path == '/logs':
@@ -463,9 +549,10 @@ class RequestHandler(SimpleHTTPRequestHandler):
 def start_http_server(directory, port, args):
     os.chdir(directory)
     handler = RequestHandler
-    with socketserver.TCPServer(('', port), handler) as httpd:
+    bind_address = "127.0.0.1" if args.single_host else "0.0.0.0"
+    with socketserver.TCPServer((bind_address, port), handler) as httpd:
         httpd.args = args 
-        print(f"{GREEN}[+] Serving {directory} on port {port}{RESET}")
+        print(f"{GREEN}[+] Serving {directory} on {bind_address}:{port}{RESET}")
         httpd.serve_forever()
 
 
@@ -606,7 +693,7 @@ def update_script():
         response.raise_for_status()  # Raise an exception for bad status codes
 
         # Write the new content to the current script
-        script_path = os.path.abspath(__file__)
+        script_path = os.path.abspath(__file__) 
         with open(script_path, 'w') as f:
             f.write(response.text)
         print(f"{GREEN}[+] Script updated successfully! Please restart the script for the changes to take effect.{RESET}")
@@ -675,15 +762,21 @@ Examples:
    python3 exposerver.py -p 3000 -d ~/my-site --ngrok
    python3 exposerver.py -p 8080 -d ~/my-site --localtunnel
    python3 exposerver.py -p 8080 --cloudflared --auth myuser:mypassword
+   python3 exposerver.py -p 8000 -d ./my_local_site  
+   python3 exposerver.py -p 8001 -f ./my_local_file.txt   
+   python3 exposerver.py -p 9095 -f payload.txt -s 
     {RESET}'''),
     formatter_class=lambda prog: CustomHelpFormatter(prog, max_help_position=50)
 )
   
     parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose output.")
     parser.add_argument("-p", "--port", type=int, default=80, help="Local port to serve (default: 80)")
-    parser.add_argument("-d", "--directory", default=".", help="Directory to serve (default: .)")
-    parser.add_argument("--auth", help="Enable basic authentication (format: username:password)")
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("-d", "--directory", default=".", help="Directory to serve (default: .)")
+    group.add_argument("-f", "--file", help="Serve a single file (e.g., -f payload.txt).")
+    parser.add_argument("-s", "--single-host", action="store_true", help="Serve only on localhost (127.0.0.1).")
     parser.add_argument("-t", "--timeout", type=int, help="Automatically shut down the server after a specified time in seconds.")
+    parser.add_argument("--auth", help="Enable basic authentication (format: username:password)")
 
     tunnel_group = parser.add_argument_group('Tunnel Options')
     tunnel_exclusive_group = tunnel_group.add_mutually_exclusive_group(required=False)
@@ -699,6 +792,7 @@ Examples:
 
     
     args = parser.parse_args()
+    args.single_file_to_serve = None # Initialize to None to prevent AttributeError
     if args.update:
         update_script()
     if args.save_local:
@@ -712,35 +806,49 @@ Examples:
         timer.daemon = True
         timer.start()
 
-    if not any([args.serveo, args.cloudflared, args.ngrok, args.localtunnel, args.update, args.save_local, args.clear_logs]):
-        parser.print_help()
-        sys.exit(0)
-
     if args.auth:
         try:
             args.auth_user, args.auth_pass = args.auth.split(':', 1)
         except ValueError:
             print(f"{RED}[!] Invalid auth format. Use username:password.{RESET}")
             sys.exit(1)
+    
     check_and_install_dependencies(args)
     check_tunnel_dependencies(args)
-     
-     
+        
     if not is_port_available(args.port):
         print(f"{RED}[!] Port {args.port} is already in use. Choose a different port.{RESET}")
         sys.exit(1)
     
     threading.Thread(target=start_http_server, args=(args.directory, args.port, args), daemon=True).start()
 
-    # Start selected tunnel
-    if args.serveo:
-        start_serveo_tunnel(args.port)
-    elif args.cloudflared:
-        start_cloudflared_tunnel(args.port)
-    elif args.ngrok:
-        start_ngrok_tunnel(args.port)
-    elif args.localtunnel:
-        start_localtunnel(args.port)
+    if not any([args.serveo, args.cloudflared, args.ngrok, args.localtunnel]):
+        bind_address = "127.0.0.1" if args.single_host else "0.0.0.0"
+        print(f"{YELLOW}[i] No tunnel selected. Serving locally on {bind_address}:{args.port}.{RESET}")
+        if args.single_file_to_serve:
+            print(f"{YELLOW}[i] Serving single file: {args.single_file_to_serve}{RESET}")
+            print(f"{YELLOW}[i] Access it at: {WHITE}http://{bind_address}:{args.port}/{args.single_file_to_serve}{RESET}")
+        else:
+            print(f"{YELLOW}[i] Access it at: {WHITE}http://{bind_address}:{args.port}{RESET}")
+        
+        # Keep the main thread alive so the daemon HTTP server thread continues to run
+        try:
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            print(f"\n{RED}[!] Local server stopped by user. Exiting...{RESET}")
+            sys.exit(0)
+    else:
+        # Start selected tunnel
+        if args.serveo:
+            start_serveo_tunnel(args.port)
+        elif args.cloudflared:
+            start_cloudflared_tunnel(args.port)
+        elif args.ngrok:
+            start_ngrok_tunnel(args.port)
+        elif args.localtunnel:
+            start_localtunnel(args.port)
+
 
 
 if __name__ == "__main__":
