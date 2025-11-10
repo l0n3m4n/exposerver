@@ -219,19 +219,7 @@ curl -F "file=@secrets.tar.gz" https://abc123.cloudflareTunnel.com/upload
 - [ ] Listener module (e.g., for Blind XSS or SSRF detection)
 - [ ] Integrate with Interactsh or Burp Collaborator
  
-
----
-
-## 📝 Changelog
-
-### Version 1.3.1 (November 2025)
-
-- **Added `-s`/`--single-host` option**: Allows binding the server to `127.0.0.1` (localhost) for enhanced security.
-- **Fixed `cgi` module compatibility**: Rewrote `do_POST` to manually parse `multipart/form-data` due to `cgi` module removal in Python 3.13.
-- **Added `-f`/`--file` option**: Enables serving a single specified file directly.
-- **Improved local server output**: Provided more detailed information when running without a tunnel, including access instructions.
-- **Ensured local server persistence**: Fixed an issue where the local server would terminate immediately if no tunnel was selected.
-
+ 
 ---
 
 ## 🙌 Contributing
