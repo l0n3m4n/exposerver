@@ -768,7 +768,9 @@ Examples:
   
     parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose output.")
     parser.add_argument("-p", "--port", type=int, default=80, help="Local port to serve (default: 80)")
-    parser.add_argument("-d", "--directory", default=".", help="Directory to serve (default: .)")
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("-d", "--directory", default=".", help="Directory to serve (default: .)")
+    group.add_argument("-f", "--file", help="Serve a single file (e.g., -f payload.txt).")
     parser.add_argument("-s", "--single-host", action="store_true", help="Serve only on localhost (127.0.0.1).")
     parser.add_argument("--auth", help="Enable basic authentication (format: username:password)")
     parser.add_argument("-t", "--timeout", type=int, help="Automatically shut down the server after a specified time in seconds.")
