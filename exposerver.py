@@ -175,6 +175,33 @@ class RequestHandler(SimpleHTTPRequestHandler):
         if not self.is_authenticated():
             self.wfile.write(b'Unauthorized')
             return
+        
+        # Handle single file serving
+        if hasattr(self.server.args, 'single_file_to_serve') and self.server.args.single_file_to_serve:
+            target_file = self.server.args.single_file_to_serve
+            # If the request is for the root or the exact filename, serve the file
+            if self.path == '/' or self.path == f'/{target_file}':
+                file_path = os.path.join(self.server.args.directory, target_file)
+                if os.path.exists(file_path) and os.path.isfile(file_path):
+                    try:
+                        with open(file_path, 'rb') as f:
+                            self.send_response(200)
+                            self.send_header('Content-type', self.guess_type(file_path))
+                            self.send_header('Content-Length', str(os.path.getsize(file_path)))
+                            self.end_headers()
+                            self.wfile.write(f.read())
+                        return
+                    except Exception as e:
+                        logging.error(f"Error serving single file {file_path}: {e}")
+                        self.send_error(500, f"Error serving file: {e}")
+                        return
+                else:
+                    self.send_error(404, "File not found")
+                    return
+            else:
+                self.send_error(404, "Not Found")
+                return
+
         if self.path == '/logs':
             try:
                 with open('headers.log', 'r') as f:
@@ -666,7 +693,7 @@ def update_script():
         response.raise_for_status()  # Raise an exception for bad status codes
 
         # Write the new content to the current script
-        script_path = os.path.abspath(__file__)
+        script_path = os.path.abspath(__file__) 
         with open(script_path, 'w') as f:
             f.write(response.text)
         print(f"{GREEN}[+] Script updated successfully! Please restart the script for the changes to take effect.{RESET}")
@@ -741,11 +768,7 @@ Examples:
   
     parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose output.")
     parser.add_argument("-p", "--port", type=int, default=80, help="Local port to serve (default: 80)")
-    
-    group = parser.add_mutually_exclusive_group()
-    group.add_argument("-d", "--directory", default=".", help="Directory to serve (default: .)")
-    group.add_argument("-f", "--file", help="Serve a single file.")
-
+    parser.add_argument("-d", "--directory", default=".", help="Directory to serve (default: .)")
     parser.add_argument("-s", "--single-host", action="store_true", help="Serve only on localhost (127.0.0.1).")
     parser.add_argument("--auth", help="Enable basic authentication (format: username:password)")
     parser.add_argument("-t", "--timeout", type=int, help="Automatically shut down the server after a specified time in seconds.")
@@ -764,23 +787,6 @@ Examples:
 
     
     args = parser.parse_args()
-
-    # Handle single file serving
-    if args.file:
-        if not os.path.exists(args.file):
-            print(f"{RED}[!] Error: File not found: {args.file}{RESET}")
-            sys.exit(1)
-        if os.path.isdir(args.file):
-            print(f"{RED}[!] Error: --file expects a file, but a directory was provided: {args.file}{RESET}")
-            sys.exit(1)
-        
-        args.single_file_to_serve = os.path.basename(args.file)
-        args.directory = os.path.dirname(os.path.abspath(args.file))
-        print(f"{BLUE}[i] Serving single file: {args.single_file_to_serve} from directory: {args.directory}{RESET}")
-    else:
-        args.single_file_to_serve = None
-        args.directory = os.path.abspath(args.directory) # Ensure directory is absolute
-
     if args.update:
         update_script()
     if args.save_local:
