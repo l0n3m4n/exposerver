@@ -762,6 +762,8 @@ Examples:
    python3 exposerver.py -p 3000 -d ~/my-site --ngrok
    python3 exposerver.py -p 8080 -d ~/my-site --localtunnel
    python3 exposerver.py -p 8080 --cloudflared --auth myuser:mypassword
+   python3 exposerver.py -p 8000 -d ./my_local_site  
+   python3 exposerver.py -p 8001 -f ./my_local_file.txt  
     {RESET}'''),
     formatter_class=lambda prog: CustomHelpFormatter(prog, max_help_position=50)
 )
@@ -802,35 +804,41 @@ Examples:
         timer.daemon = True
         timer.start()
 
-    if not any([args.serveo, args.cloudflared, args.ngrok, args.localtunnel, args.update, args.save_local, args.clear_logs]):
-        parser.print_help()
-        sys.exit(0)
-
     if args.auth:
         try:
             args.auth_user, args.auth_pass = args.auth.split(':', 1)
         except ValueError:
             print(f"{RED}[!] Invalid auth format. Use username:password.{RESET}")
             sys.exit(1)
+    
     check_and_install_dependencies(args)
     check_tunnel_dependencies(args)
-     
-     
+        
     if not is_port_available(args.port):
         print(f"{RED}[!] Port {args.port} is already in use. Choose a different port.{RESET}")
         sys.exit(1)
     
     threading.Thread(target=start_http_server, args=(args.directory, args.port, args), daemon=True).start()
 
-    # Start selected tunnel
-    if args.serveo:
-        start_serveo_tunnel(args.port)
-    elif args.cloudflared:
-        start_cloudflared_tunnel(args.port)
-    elif args.ngrok:
-        start_ngrok_tunnel(args.port)
-    elif args.localtunnel:
-        start_localtunnel(args.port)
+    if not any([args.serveo, args.cloudflared, args.ngrok, args.localtunnel]):
+        bind_address = "127.0.0.1" if args.single_host else "0.0.0.0"
+        print(f"{YELLOW}[i] No tunnel selected. Serving locally on {bind_address}:{args.port}.{RESET}")
+        if args.single_file_to_serve:
+            print(f"{YELLOW}[i] Serving single file: {args.single_file_to_serve}{RESET}")
+            print(f"{YELLOW}[i] Access it at: {WHITE}http://{bind_address}:{args.port}/{args.single_file_to_serve}{RESET}")
+        else:
+            print(f"{YELLOW}[i] Access it at: {WHITE}http://{bind_address}:{args.port}{RESET}")
+    else:
+        # Start selected tunnel
+        if args.serveo:
+            start_serveo_tunnel(args.port)
+        elif args.cloudflared:
+            start_cloudflared_tunnel(args.port)
+        elif args.ngrok:
+            start_ngrok_tunnel(args.port)
+        elif args.localtunnel:
+            start_localtunnel(args.port)
+
 
 
 if __name__ == "__main__":
