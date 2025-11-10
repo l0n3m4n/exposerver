@@ -763,7 +763,8 @@ Examples:
    python3 exposerver.py -p 8080 -d ~/my-site --localtunnel
    python3 exposerver.py -p 8080 --cloudflared --auth myuser:mypassword
    python3 exposerver.py -p 8000 -d ./my_local_site  
-   python3 exposerver.py -p 8001 -f ./my_local_file.txt  
+   python3 exposerver.py -p 8001 -f ./my_local_file.txt   
+   python3 exposerver.py -p 9095 -f payload.txt -s 
     {RESET}'''),
     formatter_class=lambda prog: CustomHelpFormatter(prog, max_help_position=50)
 )
@@ -774,8 +775,8 @@ Examples:
     group.add_argument("-d", "--directory", default=".", help="Directory to serve (default: .)")
     group.add_argument("-f", "--file", help="Serve a single file (e.g., -f payload.txt).")
     parser.add_argument("-s", "--single-host", action="store_true", help="Serve only on localhost (127.0.0.1).")
-    parser.add_argument("--auth", help="Enable basic authentication (format: username:password)")
     parser.add_argument("-t", "--timeout", type=int, help="Automatically shut down the server after a specified time in seconds.")
+    parser.add_argument("--auth", help="Enable basic authentication (format: username:password)")
 
     tunnel_group = parser.add_argument_group('Tunnel Options')
     tunnel_exclusive_group = tunnel_group.add_mutually_exclusive_group(required=False)
@@ -791,6 +792,7 @@ Examples:
 
     
     args = parser.parse_args()
+    args.single_file_to_serve = None # Initialize to None to prevent AttributeError
     if args.update:
         update_script()
     if args.save_local:
@@ -828,6 +830,14 @@ Examples:
             print(f"{YELLOW}[i] Access it at: {WHITE}http://{bind_address}:{args.port}/{args.single_file_to_serve}{RESET}")
         else:
             print(f"{YELLOW}[i] Access it at: {WHITE}http://{bind_address}:{args.port}{RESET}")
+        
+        # Keep the main thread alive so the daemon HTTP server thread continues to run
+        try:
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            print(f"\n{RED}[!] Local server stopped by user. Exiting...{RESET}")
+            sys.exit(0)
     else:
         # Start selected tunnel
         if args.serveo:
