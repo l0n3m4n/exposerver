@@ -109,7 +109,6 @@ Examples:
 ## 🛠️ Requirements
 
   - Python 3.6+
-  - Internet access (for tunnels)
   - At least one tunneling tool installed:
       * [Serveo](https://serveo.net) (via SSH)
       * [cloudflared](https://developers.cloudflare.com/cloudflare-one/) (recommended)
@@ -163,8 +162,6 @@ exposerver -p 8080 --cloudflared -f payload.txt -t 60
 # Update the script to the latest version
 exposerver -u
 
-# Save to local binaries
-exposerver -sl
 ```
 
 ## 📂 Host current directory
