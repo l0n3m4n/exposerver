@@ -24,6 +24,27 @@ from datetime import datetime
 from PIL import Image
 from PIL.ExifTags import TAGS
 
+
+def get_assets_base_path():
+    """Determines the base path for assets."""
+    # Path 1: 'assets' directory relative to the script
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    local_path = os.path.join(script_dir, 'assets')
+    if os.path.isdir(local_path):
+        return local_path
+
+    # Path 2: '.exposerver/assets' in the user's home directory
+    home_dir = os.path.expanduser("~")
+    user_path = os.path.join(home_dir, '.exposerver', 'assets')
+    if os.path.isdir(user_path):
+        return user_path
+
+    # Fallback to the local path, allowing errors to be handled downstream
+    return local_path
+
+ASSETS_BASE_PATH = get_assets_base_path()
+
+
 # ANSI terminal colors
 RED = "\033[91m"
 GREEN = "\033[92m"
@@ -48,7 +69,7 @@ ___________
  |        \>    < |  |_> >  <_> )___ \\  ___/|  | \/\   /\  ___/|  | \/
 /_______  /__/\_ \|   __/ \____/____  >\___  >__|    \_/  \___  >__|   
         \/      \/|__|              \/     \/                 \/       
-     Author: l0n3m4n | Version: 1.3.1 | Tunneling local Server 
+     Author: l0n3m4n | Version: 1.3.2 | Tunneling local Server 
 {RESET}"""
     print(banner)
 
@@ -214,7 +235,7 @@ class RequestHandler(SimpleHTTPRequestHandler):
                 self.send_response(200)
                 self.send_header('Content-type', 'text/plain')
                 self.end_headers()
-                self.wfile.write(b'') # Send empty response if log file doesn't exist
+                self.wfile.write(b'') 
             return
 
         headers_str = f"\n[Request] {self.client_address[0]} - Path: {self.path}\n"
@@ -291,11 +312,11 @@ class RequestHandler(SimpleHTTPRequestHandler):
             return
 
         if self.path.startswith('/assets/ui/'):
-            script_dir = os.path.dirname(os.path.abspath(__file__))
-            file_path = os.path.join(script_dir, self.path.lstrip('/'))
+            path_inside_assets = self.path.split('/assets/', 1)[1]
+            file_path = os.path.join(ASSETS_BASE_PATH, path_inside_assets)
             
             # Security check to prevent directory traversal
-            if not self._is_safe_path(os.path.join(script_dir, 'assets', 'ui'), file_path):
+            if not self._is_safe_path(os.path.join(ASSETS_BASE_PATH, 'ui'), file_path):
                 self.send_error(403, "Forbidden")
                 return
 
@@ -401,8 +422,7 @@ class RequestHandler(SimpleHTTPRequestHandler):
 
         # Read the template and inject the data
         try:
-            script_dir = os.path.dirname(os.path.abspath(__file__))
-            template_path = os.path.join(script_dir, 'assets', 'ui', 'index.html')
+            template_path = os.path.join(ASSETS_BASE_PATH, 'ui', 'index.html')
             with open(template_path, 'r') as f:
                 template = f.read()
         except FileNotFoundError:
@@ -690,9 +710,8 @@ def update_script():
     try:
         url = "https://raw.githubusercontent.com/l0n3m4n/exposerver/master/exposerver.py"
         response = requests.get(url)
-        response.raise_for_status()  # Raise an exception for bad status codes
+        response.raise_for_status()  
 
-        # Write the new content to the current script
         script_path = os.path.abspath(__file__) 
         with open(script_path, 'w') as f:
             f.write(response.text)
@@ -725,11 +744,27 @@ def save_to_local_bin():
         subprocess.run(['sudo', 'cp', script_path, destination_path], check=True)
         subprocess.run(['sudo', 'chmod', '+x', destination_path], check=True)
         print(f"{GREEN}[+] Script saved successfully! You can now run it as 'exposerver'.{RESET}")
+
+        script_dir = os.path.dirname(script_path)
+        asset_src_dir = os.path.join(script_dir, 'assets')
+        if os.path.isdir(asset_src_dir):
+            home_dir = os.path.expanduser('~')
+            asset_dest_dir = os.path.join(home_dir, '.exposerver', 'assets')
+            print(f"{BLUE}[i] Copying assets to {asset_dest_dir}...{RESET}")
+            if os.path.exists(asset_dest_dir):
+                shutil.rmtree(asset_dest_dir)
+            shutil.copytree(asset_src_dir, asset_dest_dir)
+            print(f"{GREEN}[+] Assets copied successfully!{RESET}")
+        else:
+            print(f"{YELLOW}[!] 'assets' directory not found next to script. Skipping asset copy.{RESET}")
+
     except subprocess.CalledProcessError as e:
         print(f"{RED}[!] Failed to save script: {e}{RESET}")
         print(f"{YELLOW}[i] Please try running the command with sudo.{RESET}")
     except FileNotFoundError:
         print(f"{RED}[!] Failed to save script. 'sudo' command not found.{RESET}")
+    except Exception as e:
+        print(f"{RED}[!] An error occurred during asset copy: {e}{RESET}")
     sys.exit(0)
 
 def shutdown_server(timeout):
@@ -792,7 +827,7 @@ Examples:
 
     
     args = parser.parse_args()
-    args.single_file_to_serve = None # Initialize to None to prevent AttributeError
+    args.single_file_to_serve = None 
     if args.update:
         update_script()
     if args.save_local:

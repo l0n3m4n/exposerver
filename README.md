@@ -45,7 +45,7 @@ It’s especially useful for:
 - Expose server via:
   - 🌐 [Serveo](https://serveo.net)
   - ☁️ [Cloudflared](https://developers.cloudflare.com/cloudflare-one/)
-  -  tunnelling [Ngrok](https://ngrok.com/)
+  - ↪️ [Ngrok](https://ngrok.com/)
   - 🚇 [Localtunnel](https://theboroer.github.io/localtunnel-www/)
 - Upload file, View metadata, view browser logs
 - Optional user interface (Darkmode, Lighmode, Hackermode)
@@ -58,7 +58,7 @@ It’s especially useful for:
 
 ## 🚀 Banner  
 ```bash
-❯ exposerver.py -h
+❯ python3 exposerver.py -h
 
 ___________                                                            
 \_   _____/__  _________   ____  ______ ______________  __ ___________
@@ -66,20 +66,22 @@ ___________
  |        \>    < |  |_> >  <_> )___ \\  ___/|  | \/\   /\  ___/|  | \/
 /_______  /__/\_ \|   __/ \____/____  >\___  >__|    \_/  \___  >__|   
         \/      \/|__|              \/     \/                 \/       
-     Author: l0n3m4n | Version: 1.3.1 | Tunneling local Server 
+     Author: l0n3m4n | Version: 1.3.2 | Tunneling local Server 
 
-usage: exposerver.py [-h] [-v] [-p PORT] [-d DIRECTORY] [--auth AUTH] [--timeout TIMEOUT]
-                     [--serveo | --cloudflared | --ngrok | --localtunnel] [-u] [-sl]
+usage: exposerver.py [-h] [-v] [-p PORT] [-d DIRECTORY | -f FILE] [-s] [-t TIMEOUT] [--auth AUTH]
+                     [--serveo | --cloudflared | --ngrok | --localtunnel] [-u] [-sl] [--clear-logs]
 
 📡 Serve a local directory and expose it via a tunnel (Serveo, Cloudflared, Ngrok).
 
-options:                                                                                             
-  -h, --help                 show this help message and exit                                         
-  -v, --verbose              Enable verbose output.                                                  
-  -p, --port PORT            Local port to serve (default: 80)                                       
-  -d, --directory DIRECTORY  Directory to serve (default: .)                                         
-  --auth AUTH                Enable basic authentication (format: username:password)                 
-  --timeout TIMEOUT          Automatically shut down the server after a specified time in seconds.   
+options:
+  -h, --help                 show this help message and exit
+  -v, --verbose              Enable verbose output.
+  -p, --port PORT            Local port to serve (default: 80)
+  -d, --directory DIRECTORY  Directory to serve (default: .)
+  -f, --file FILE            Serve a single file (e.g., -f payload.txt).
+  -s, --single-host          Serve only on localhost (127.0.0.1).
+  -t, --timeout TIMEOUT      Automatically shut down the server after a specified time in seconds.
+  --auth AUTH                Enable basic authentication (format: username:password)
                                                                                                      
 Tunnel Options:                                                                                      
   --serveo                   Use Serveo tunnel                                                       
@@ -90,6 +92,7 @@ Tunnel Options:
 Script Management:                                                                                   
   -u, --update               Update the script from GitHub.                                          
   -sl, --save-local          Save the script to /usr/local/bin                                       
+  --clear-logs               Clear the log file.                                                     
                                                                                                      
                                                                                                      
 Examples:                                                                                            
@@ -97,19 +100,21 @@ Examples:
    python3 exposerver.py -p 80 -d /var/www/html --cloudflared                                        
    python3 exposerver.py -p 3000 -d ~/my-site --ngrok                                                
    python3 exposerver.py -p 8080 -d ~/my-site --localtunnel                                          
-   python3 exposerver.py -p 8080 --cloudflared --auth myuser:mypassword  
+   python3 exposerver.py -p 8080 --cloudflared --auth myuser:mypassword                              
+   python3 exposerver.py -p 8000 -d ./my_local_site                                                  
+   python3 exposerver.py -p 8001 -f ./my_local_file.txt                                              
+   python3 exposerver.py -p 9095 -f payload.txt -s    
 ```
 
 ## 🛠️ Requirements
 
   - Python 3.6+
-  - Internet access (for tunnels)
   - At least one tunneling tool installed:
-      * Serveo (via SSH)
-      * cloudflared (recommended)
-      * ngrok (optional)
-      * localtunnel (optional)
-      * exiftool (metadata)
+      * [Serveo](https://serveo.net) (via SSH)
+      * [cloudflared](https://developers.cloudflare.com/cloudflare-one/) (recommended)
+      * [ngrok](https://ngrok.com/) (optional)
+      * [localtunnel](https://theboroer.github.io/localtunnel-www/) (optional)
+      * [exiftool](https://exiftool.org/index.html) (metadata)
 
 ---
 
@@ -145,8 +150,18 @@ sudo exposerver -p 8080 -d ~/my-site --localtunnel
 # Enable basic authentication
 sudo exposerver -p 8080 --cloudflared --auth myuser:mypassword
 
+# Host single file 
+exposerver -p 8080 --cloudflared -f payload.txt 
+
+# Hosting localhost 
+exposerver -p 8080 -s -d ~/my-site
+
+# Automatically shutdown set time in seconds
+exposerver -p 8080 --cloudflared -f payload.txt -t 60
+
 # Update the script to the latest version
 exposerver -u
+
 ```
 
 ## 📂 Host current directory
