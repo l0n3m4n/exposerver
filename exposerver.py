@@ -235,7 +235,7 @@ class RequestHandler(SimpleHTTPRequestHandler):
                 self.send_response(200)
                 self.send_header('Content-type', 'text/plain')
                 self.end_headers()
-                self.wfile.write(b'') # Send empty response if log file doesn't exist
+                self.wfile.write(b'') 
             return
 
         headers_str = f"\n[Request] {self.client_address[0]} - Path: {self.path}\n"
@@ -710,9 +710,8 @@ def update_script():
     try:
         url = "https://raw.githubusercontent.com/l0n3m4n/exposerver/master/exposerver.py"
         response = requests.get(url)
-        response.raise_for_status()  # Raise an exception for bad status codes
+        response.raise_for_status()  
 
-        # Write the new content to the current script
         script_path = os.path.abspath(__file__) 
         with open(script_path, 'w') as f:
             f.write(response.text)
@@ -746,7 +745,6 @@ def save_to_local_bin():
         subprocess.run(['sudo', 'chmod', '+x', destination_path], check=True)
         print(f"{GREEN}[+] Script saved successfully! You can now run it as 'exposerver'.{RESET}")
 
-        # Copy assets to ~/.exposerver/
         script_dir = os.path.dirname(script_path)
         asset_src_dir = os.path.join(script_dir, 'assets')
         if os.path.isdir(asset_src_dir):
@@ -829,7 +827,7 @@ Examples:
 
     
     args = parser.parse_args()
-    args.single_file_to_serve = None # Initialize to None to prevent AttributeError
+    args.single_file_to_serve = None 
     if args.update:
         update_script()
     if args.save_local:
