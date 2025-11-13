@@ -24,7 +24,6 @@ from datetime import datetime
 from PIL import Image
 from PIL.ExifTags import TAGS
 
-
 def get_assets_base_path():
     """Determines the base path for assets."""
     # Path 1: 'assets' directory relative to the script
@@ -54,12 +53,26 @@ CYAN = "\033[96m"
 WHITE = "\033[97m"
 RESET = "\033[0m"
 
-# Logging setup
-logging.basicConfig(
-    filename="headers.log",
-    level=logging.DEBUG, # Changed from INFO to DEBUG
-    format="%(asctime)s - %(message)s",
-)
+class JsonFormatter(logging.Formatter):
+    def format(self, record):
+        log_record = {
+            "timestamp": self.formatTime(record, self.datefmt),
+            "level": record.levelname,
+        }
+        if isinstance(record.msg, dict):
+            log_record.update(record.msg)
+        else:
+            log_record["message"] = record.getMessage()
+        return json.dumps(log_record)
+
+class TextFormatter(logging.Formatter):
+    def format(self, record):
+        if isinstance(record.msg, dict):
+            headers_dict = record.msg.get("headers", {})
+            headers_str = "\n".join([f"{key}: {value}" for key, value in headers_dict.items()])
+            return f"\n[Request] {record.msg.get('client_address', '')[0]} - Path: {record.msg.get('path', '')}\n{headers_str}"
+        else:
+            return super().format(record)
 
 def print_banner():
     banner = rf"""{CYAN}
@@ -69,7 +82,7 @@ ___________
  |        \>    < |  |_> >  <_> )___ \\  ___/|  | \/\   /\  ___/|  | \/
 /_______  /__/\_ \|   __/ \____/____  >\___  >__|    \_/  \___  >__|   
         \/      \/|__|              \/     \/                 \/       
-     Author: l0n3m4n | Version: 1.3.3 | Tunneling local Server 
+     Author: l0n3m4n | Version: 1.3.4 | Tunneling local Server 
 {RESET}"""
     print(banner)
 
@@ -86,7 +99,7 @@ def check_and_install_dependencies(args):
     dependencies = [
         {"name": "requests", "type": "pip", "check": "requests"},
         {"name": "Pillow", "type": "pip", "check": "PIL"},
-        {"name": "exiftool", "type": "apt", "check": "exiftool", "install": "libimage-exiftool-perl"},
+        {"name": "exiftool", "type": "package_manager", "check": "exiftool", "install": "libimage-exiftool-perl"},
     ]
 
     if args.verbose:
@@ -102,18 +115,36 @@ def check_and_install_dependencies(args):
             except ImportError:
                 print(f"{YELLOW}[!] {dep['name']} not found. Installing...{RESET}")
                 subprocess.check_call([sys.executable, "-m", "pip", "install", dep['name'], "--break-system-packages"])
-        elif dep["type"] == "apt":
+        elif dep["type"] == "package_manager":
             if shutil.which(dep["check"]):
                 if args.verbose:
                     print(f"{GREEN}[+] {dep['name']} is already installed.{RESET}")
             else:
-                print(f"{YELLOW}[!] {dep['name']} not found. Installing...{RESET}")
-                try:
-                    subprocess.check_call(["sudo", "apt-get", "update"])
-                    subprocess.check_call(["sudo", "apt-get", "install", "-y", dep["install"]])
-                except subprocess.CalledProcessError as e:
-                    print(f"{RED}[!] Failed to install {dep['name']}. Please install it manually.{RESET}")
-                    print(e)
+                print(f"{YELLOW}[!] {dep['name']} not found. Attempting to install...{RESET}")
+                package_managers = {
+                    "apt-get": "sudo apt-get install -y {}",
+                    "yum": "sudo yum install -y {}",
+                    "pacman": "sudo pacman -S --noconfirm {}",
+                    "brew": "brew install {}",
+                }
+                installed = False
+                for pm, command in package_managers.items():
+                    if shutil.which(pm):
+                        try:
+                            subprocess.check_call(command.format(dep['install']).split())
+                            installed = True
+                            break
+                        except subprocess.CalledProcessError as e:
+                            print(f"{RED}[!] Failed to install {dep['name']} using {pm}.{RESET}")
+                            print(e)
+                if not installed:
+                    print(f"{RED}[!] Could not install {dep['name']}. Please install it manually.{RESET}")
+                    if sys.platform == "darwin":
+                        print(f"{YELLOW}[i] On macOS, you can use Homebrew: brew install {dep['install']}{RESET}")
+                    elif sys.platform.startswith("linux"):
+                        print(f"{YELLOW}[i] On Debian/Ubuntu: sudo apt-get install {dep['install']}{RESET}")
+                        print(f"{YELLOW}[i] On Fedora/CentOS: sudo yum install {dep['install']}{RESET}")
+                        print(f"{YELLOW}[i] On Arch Linux: sudo pacman -S {dep['install']}{RESET}")
                     sys.exit(1)
 
 # auto-detect missing binaries 
@@ -225,7 +256,7 @@ class RequestHandler(SimpleHTTPRequestHandler):
 
         if self.path == '/logs':
             try:
-                with open('headers.log', 'r') as f:
+                with open(self.server.args.outfile, 'r') as f:
                     logs = f.read()
                 self.send_response(200)
                 self.send_header('Content-type', 'text/plain')
@@ -238,10 +269,12 @@ class RequestHandler(SimpleHTTPRequestHandler):
                 self.wfile.write(b'') 
             return
 
-        headers_str = f"\n[Request] {self.client_address[0]} - Path: {self.path}\n"
-        for key, value in self.headers.items():
-            headers_str += f"{key}: {value}\n"
-        logging.info(headers_str)
+        log_data = {
+            "client_address": self.client_address,
+            "path": self.path,
+            "headers": dict(self.headers),
+        }
+        logging.info(log_data)
 
         if self.path.startswith('/metadata'):
             query_components = parse_qs(urlparse(self.path).query)
@@ -339,14 +372,18 @@ class RequestHandler(SimpleHTTPRequestHandler):
                 self.send_error(404, "File not found")
                 return
 
-        # Get the full path of the requested file/directory
-        current_dir = os.getcwd()
-        requested_path = os.path.join(current_dir, self.path.lstrip('/'))
-
-        if os.path.isdir(requested_path):
-            self.list_directory(requested_path)
+        # For any other GET request, use the default handler, but first check if it's a directory.
+        # If it is, use our custom directory listing.
+        path = self.translate_path(self.path)
+        if os.path.isdir(path):
+            self.list_directory(path)
         else:
             super().do_GET()
+
+    def translate_path(self, path):
+        # A simple version of translate_path that uses the current working directory
+        # set by start_http_server
+        return os.path.join(os.getcwd(), path.lstrip('/'))
 
     def list_directory(self, path):
         try:
@@ -441,10 +478,12 @@ class RequestHandler(SimpleHTTPRequestHandler):
     
 
     def do_POST(self):
-        headers_str = f"\n[Request] {self.client_address[0]} - Path: {self.path}\n"
-        for key, value in self.headers.items():
-            headers_str += f"{key}: {value}\n"
-        logging.info(headers_str)
+        log_data = {
+            "client_address": self.client_address,
+            "path": self.path,
+            "headers": dict(self.headers),
+        }
+        logging.info(log_data)
 
         if not self.is_authenticated():
             self.wfile.write(b'Unauthorized')
@@ -772,10 +811,12 @@ def shutdown_server(timeout):
     sys.exit(0)
 
 
-def clear_log_file():
-    with open("headers.log", "w") as f:
-        f.write("")
-    print(f"{GREEN}[+] Log file cleared.{RESET}")
+def clear_log_file(log_path):
+    if os.path.exists(log_path):
+        os.remove(log_path)
+        print(f"{GREEN}[+] Log file removed: {log_path}{RESET}")
+    else:
+        print(f"{YELLOW}[i] Log file not found, nothing to clear: {log_path}{RESET}")
     sys.exit(0)
 
 
@@ -786,13 +827,11 @@ class CustomHelpFormatter(argparse.RawDescriptionHelpFormatter):
 
 
 def main():
-    if not os.path.exists('upload'):
-        os.makedirs('upload')
     parser = argparse.ArgumentParser(
     description="📡 Serve a local directory and expose it via a tunnel (Serveo, Cloudflared, Ngrok).",
     epilog=textwrap.dedent(f'''{GREEN}
 Examples:
-   python3 exposerver.py -p 8080 --serveo
+   python3 exposerver.py -p 8080 --serveo 
    python3 exposerver.py -p 80 -d /var/www/html --cloudflared
    python3 exposerver.py -p 3000 -d ~/my-site --ngrok
    python3 exposerver.py -p 8080 -d ~/my-site --localtunnel
@@ -800,6 +839,8 @@ Examples:
    python3 exposerver.py -p 8000 -d ./my_local_site  
    python3 exposerver.py -p 8001 -f ./my_local_file.txt   
    python3 exposerver.py -p 9095 -f payload.txt -s 
+   python3 exposerver.py -p 8080 -d ./site --ngrok -t 600
+   python3 exposerver.py --clear-logs 
     {RESET}'''),
     formatter_class=lambda prog: CustomHelpFormatter(prog, max_help_position=50)
 )
@@ -812,6 +853,7 @@ Examples:
     parser.add_argument("-s", "--single-host", action="store_true", help="Serve only on localhost (127.0.0.1).")
     parser.add_argument("-t", "--timeout", type=int, help="Automatically shut down the server after a specified time in seconds.")
     parser.add_argument("--auth", help="Enable basic authentication (format: username:password)")
+    parser.add_argument("-o", "--outfile", default="headers.log", help="Specify a file to save the logs (e.g., logs.json, logs.txt).")
 
     tunnel_group = parser.add_argument_group('Tunnel Options')
     tunnel_exclusive_group = tunnel_group.add_mutually_exclusive_group(required=False)
@@ -833,7 +875,17 @@ Examples:
     if args.save_local:
         save_to_local_bin()
     if args.clear_logs:
-        clear_log_file()
+        clear_log_file(args.outfile)
+
+    # Initialize logging and other setup only after handling exit-early commands
+    LOG_FILE_PATH = args.outfile
+    logging.basicConfig(
+        filename=LOG_FILE_PATH,
+        level=logging.DEBUG,
+        format="%(asctime)s - %(message)s",
+    )
+    if not os.path.exists('upload'):
+        os.makedirs('upload')
 
     if args.timeout:
         print(f"{YELLOW}[i] Server will automatically shut down in {args.timeout} seconds.{RESET}")

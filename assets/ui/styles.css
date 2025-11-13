@@ -661,7 +661,6 @@ a:hover {
     white-space: pre-wrap;
     word-wrap: break-word;
     width: 100%; /* Ensure progress section spans full width */
-    text-align: center;
     color: var(--text-color); /* Ensure progress text color adapts */
 }
 
@@ -725,6 +724,24 @@ a:hover {
     }
 }
 
+
+
+
+.upload-item-container {
+    padding: 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    margin-bottom: 10px;
+}
+
+.progress-description {
+    text-align: left;
+}
+
+.progress-cancel {
+    text-align: center;
+}
+
 .progress-bar-background {
     width: 100%;
     background-color: var(--border-color);
@@ -744,4 +761,28 @@ a:hover {
 
 .error-message {
     color: #d9534f;
+}
+
+.success-message {
+    color: #5cb85c;
+}
+
+.cancel-btn {
+    background-color: #d9534f; /* Red background */
+    color: white; /* White text */
+    border: none;
+    border-radius: 4px;
+    padding: 8px 12px; /* Even more padding */
+    cursor: pointer;
+    font-size: 14px; /* Explicitly larger font size */
+    font-weight: bold;
+}
+
+.cancel-btn:hover {
+    background-color: #c9302c; /* Darker red on hover */
+    color: white;
+}
+
+.info-message {
+    color: var(--text-color);
 }
