@@ -271,6 +271,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // File Upload Logic
     if (dropZone) {
+        const activeUploads = {};
+
+        uploadProgress.addEventListener('click', (e) => {
+            if (e.target.classList.contains('cancel-btn')) {
+                const fileId = e.target.dataset.fileId;
+                if (activeUploads[fileId]) {
+                    activeUploads[fileId].abort();
+                }
+            }
+        });
+
         dropZone.addEventListener('click', () => fileInput.click());
 
         dropZone.addEventListener('dragover', (e) => {
@@ -304,24 +315,40 @@ document.addEventListener('DOMContentLoaded', () => {
             const formData = new FormData();
             formData.append('file', file);
 
+            const sanitizedId = file.name.replace(/[^a-zA-Z0-9]/g, '');
+
+            // Remove any existing progress container for this file to avoid duplicate IDs
+            const existingContainer = document.getElementById(`progress-container-${sanitizedId}`);
+            if (existingContainer) {
+                existingContainer.remove();
+            }
+
             const fileProgressContainer = document.createElement('div');
-            fileProgressContainer.id = `progress-container-${file.name.replace(/[^a-zA-Z0-9]/g, '')}`; // Sanitize ID
+            fileProgressContainer.className = 'upload-item-container';
+            fileProgressContainer.id = `progress-container-${sanitizedId}`;
             fileProgressContainer.innerHTML = `
-                <p>${file.name}: <span id="progress-text-${file.name.replace(/[^a-zA-Z0-9]/g, '')}">0%</span></p>
+                <div class="progress-description">
+                    <span>${file.name}: <span id="progress-text-${sanitizedId}">0%</span></span>
+                </div>
+                <div class="progress-cancel">
+                    <button class="cancel-btn" data-file-id="${sanitizedId}">Cancel</button>
+                </div>
                 <div class="progress-bar-background">
-                    <div class="progress-bar-fill" id="progress-bar-${file.name.replace(/[^a-zA-Z0-9]/g, '')}"></div>
+                    <div class="progress-bar-fill" id="progress-bar-${sanitizedId}"></div>
                 </div>
             `;
             uploadProgress.appendChild(fileProgressContainer);
 
             const xhr = new XMLHttpRequest();
+            activeUploads[sanitizedId] = xhr;
+
             xhr.open('POST', '/upload', true);
 
             xhr.upload.onprogress = (e) => {
                 if (e.lengthComputable) {
                     const percentComplete = (e.loaded / e.total) * 100;
-                    const progressBarFill = document.getElementById(`progress-bar-${file.name.replace(/[^a-zA-Z0-9]/g, '')}`);
-                    const progressText = document.getElementById(`progress-text-${file.name.replace(/[^a-zA-Z0-9]/g, '')}`);
+                    const progressBarFill = document.getElementById(`progress-bar-${sanitizedId}`);
+                    const progressText = document.getElementById(`progress-text-${sanitizedId}`);
                     if (progressBarFill) {
                         progressBarFill.style.width = `${percentComplete.toFixed(0)}%`;
                     }
@@ -332,25 +359,40 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             xhr.onload = () => {
-                const fileProgressContainer = document.getElementById(`progress-container-${file.name.replace(/[^a-zA-Z0-9]/g, '')}`);
-                if (xhr.status === 200) {
-                    if (fileProgressContainer) {
-                        fileProgressContainer.remove();
-                    }
-                    location.reload();
-                } else {
-                    if (fileProgressContainer) {
-                        fileProgressContainer.innerHTML = `<p class="error-message">Error uploading file '${file.name}'. Status: ${xhr.status}</p>`;
+                const fileProgressContainer = document.getElementById(`progress-container-${sanitizedId}`);
+                if (fileProgressContainer) {
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        // Success
+                        fileProgressContainer.innerHTML = `<p class="success-message">${xhr.responseText}</p>`;
+                        setTimeout(() => {
+                            location.reload();
+                        }, 2000); // Reload after 2 seconds
+                    } else {
+                        // Error
+                        let errorMessage = `Error uploading '${file.name}'. Status: ${xhr.status}`;
+                        if (xhr.responseText) {
+                            errorMessage += ` - ${xhr.responseText}`;
+                        }
+                        fileProgressContainer.innerHTML = `<p class="error-message">${errorMessage}</p>`;
                     }
                 }
+                delete activeUploads[sanitizedId];
             };
 
             xhr.onerror = () => {
-                const progressElement = document.createElement('p');
-                const progressBarContainer = document.getElementById(`progress-container-${file.name.replace(/[^a-zA-Z0-9]/g, '')}`);
-                progressElement.textContent = `Network error uploading file '${file.name}'.`;
-                uploadProgress.appendChild(progressElement);
-                if (progressBarContainer) progressBarContainer.remove();
+                const fileProgressContainer = document.getElementById(`progress-container-${sanitizedId}`);
+                if (fileProgressContainer) {
+                    fileProgressContainer.innerHTML = `<p class="error-message">Network error uploading file '${file.name}'.</p>`;
+                }
+                delete activeUploads[sanitizedId];
+            };
+
+            xhr.onabort = () => {
+                const fileProgressContainer = document.getElementById(`progress-container-${sanitizedId}`);
+                if (fileProgressContainer) {
+                    fileProgressContainer.innerHTML = `<p class="info-message">Upload of '${file.name}' was canceled.</p>`;
+                }
+                delete activeUploads[sanitizedId];
             };
 
             xhr.send(formData);
