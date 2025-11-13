@@ -68,9 +68,12 @@ class JsonFormatter(logging.Formatter):
 class TextFormatter(logging.Formatter):
     def format(self, record):
         if isinstance(record.msg, dict):
+            timestamp = self.formatTime(record, self.datefmt)
             headers_dict = record.msg.get("headers", {})
             headers_str = "\n".join([f"{key}: {value}" for key, value in headers_dict.items()])
-            return f"\n[Request] {record.msg.get('client_address', '')[0]} - Path: {record.msg.get('path', '')}\n{headers_str}"
+            client_ip = record.msg.get('client_address', ('', 0))[0]
+            path = record.msg.get('path', '')
+            return f"\n{timestamp} - [Request] {client_ip} - Path: {path}\n{headers_str}"
         else:
             return super().format(record)
 
@@ -879,11 +882,21 @@ Examples:
 
     # Initialize logging and other setup only after handling exit-early commands
     LOG_FILE_PATH = args.outfile
-    logging.basicConfig(
-        filename=LOG_FILE_PATH,
-        level=logging.DEBUG,
-        format="%(asctime)s - %(message)s",
-    )
+    logger = logging.getLogger()
+    logger.setLevel(logging.DEBUG)
+    handler = logging.FileHandler(LOG_FILE_PATH)
+
+    if LOG_FILE_PATH.endswith('.json'):
+        formatter = JsonFormatter()
+    else:
+        formatter = TextFormatter("%(asctime)s - %(message)s")
+
+    handler.setFormatter(formatter)
+    
+    # Clear existing handlers to avoid duplicate logs
+    if logger.hasHandlers():
+        logger.handlers.clear()
+    logger.addHandler(handler)
     if not os.path.exists('upload'):
         os.makedirs('upload')
 
