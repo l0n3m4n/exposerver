@@ -872,7 +872,7 @@ Examples:
 
     
     args = parser.parse_args()
-    args.single_file_to_serve = None 
+    args.single_file_to_serve = args.file
     if args.update:
         update_script()
     if args.save_local:
