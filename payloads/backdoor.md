@@ -30,7 +30,7 @@ chmod 600 ~/.ssh/authorized_keys
 # connecting remote target host
 ssh -i id_rsa username@target.com
 ```
-## Firewall bypass root privileges
+## Firewall bypass root privileges required
 ```bash
 # List the iptables settings
 iptables --list
