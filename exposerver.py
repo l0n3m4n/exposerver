@@ -849,14 +849,14 @@ Examples:
 )
   
     parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose output.")
-    parser.add_argument("-p", "--port", type=int, default=80, help="Local port to serve (default: 80)")
+    parser.add_argument("-p", "--port", type=int, default=80, metavar="", help="Local port to serve (default: 80)")
     group = parser.add_mutually_exclusive_group()
-    group.add_argument("-d", "--directory", default=".", help="Directory to serve (default: .)")
-    group.add_argument("-f", "--file", help="Serve a single file (e.g., -f payload.txt).")
+    group.add_argument("-d", "--directory", default=".", metavar="", help="Directory to serve (default: .)")
+    group.add_argument("-f", "--file", metavar="", help="Serve a single file (e.g., -f payload.txt).")
     parser.add_argument("-s", "--single-host", action="store_true", help="Serve only on localhost (127.0.0.1).")
-    parser.add_argument("-t", "--timeout", type=int, help="Automatically shut down the server after a specified time in seconds.")
-    parser.add_argument("--auth", help="Enable basic authentication (format: username:password)")
-    parser.add_argument("-o", "--outfile", default="headers.log", help="Specify a file to save the logs (e.g., logs.json, logs.txt).")
+    parser.add_argument("-t", "--timeout", type=int, metavar="", help="Automatically shut down the server after a specified time in seconds.")
+    parser.add_argument("-a", "--auth", help="Enable basic authentication (format: username:password)")
+    parser.add_argument("-o", "--outfile", default="headers.log", metavar="", help="Specify a file to save the logs (e.g., logs.json, logs.txt).")
 
     tunnel_group = parser.add_argument_group('Tunnel Options')
     tunnel_exclusive_group = tunnel_group.add_mutually_exclusive_group(required=False)
@@ -866,9 +866,9 @@ Examples:
     tunnel_exclusive_group.add_argument("--localtunnel", action="store_true", help="Use LocalTunnel tunnel")
 
     management_group = parser.add_argument_group('Script Management')
-    management_group.add_argument("-u", "--update", action="store_true", help="Update the script from GitHub.")
+    management_group.add_argument("-up", "--update", action="store_true", help="Update the script from GitHub.")
     management_group.add_argument("-sl", "--save-local", action="store_true", help="Save the script to /usr/local/bin")
-    management_group.add_argument("--clear-logs", action="store_true", help="Clear the log file.")
+    management_group.add_argument("-cl", "--clear-logs", action="store_true", help="Clear the log file.")
 
     
     args = parser.parse_args()
