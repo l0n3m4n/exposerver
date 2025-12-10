@@ -59,7 +59,7 @@ It’s especially useful for:
 
 ## 🚀 Banner  
 ```bash
-❯ exposerver -h
+❯ python3 exposerver.py -h
 
 ___________                                                            
 \_   _____/__  _________   ____  ______ ______________  __ ___________
@@ -69,33 +69,32 @@ ___________
         \/      \/|__|              \/     \/                 \/       
      Author: l0n3m4n | Version: 1.3.4 | Tunneling local Server 
 
-usage: exposerver [-h] [-v] [-p PORT] [-d DIRECTORY | -f FILE] [-s] [-t TIMEOUT] [--auth AUTH]
-                  [-o OUTFILE] [--serveo | --cloudflared | --ngrok | --localtunnel] [-u] [-sl]
-                  [--clear-logs]
+usage: exposerver.py [-h] [-v] [-p ] [-d  | -f ] [-s] [-t ] [-a AUTH] [-o ] [--serveo |
+                     --cloudflared | --ngrok | --localtunnel] [-up] [-sl] [-cl]
 
 📡 Serve a local directory and expose it via a tunnel (Serveo, Cloudflared, Ngrok).
 
 options:
-  -h, --help                 show this help message and exit
-  -v, --verbose              Enable verbose output.
-  -p, --port PORT            Local port to serve (default: 80)
-  -d, --directory DIRECTORY  Directory to serve (default: .)
-  -f, --file FILE            Serve a single file (e.g., -f payload.txt).
-  -s, --single-host          Serve only on localhost (127.0.0.1).
-  -t, --timeout TIMEOUT      Automatically shut down the server after a specified time in seconds.
-  --auth AUTH                Enable basic authentication (format: username:password)
-  -o, --outfile OUTFILE      Specify a file to save the logs (e.g., logs.json, logs.txt).
+  -h, --help         show this help message and exit
+  -v, --verbose      Enable verbose output.
+  -p, --port         Local port to serve (default: 80)
+  -d, --directory    Directory to serve (default: .)
+  -f, --file         Serve a single file (e.g., -f payload.txt).
+  -s, --single-host  Serve only on localhost (127.0.0.1).
+  -t, --timeout      Automatically shut down the server after a specified time in seconds.
+  -a, --auth AUTH    Enable basic authentication (format: username:password)
+  -o, --outfile      Specify a file to save the logs (e.g., logs.json, logs.txt).
 
 Tunnel Options:
-  --serveo                   Use Serveo tunnel
-  --cloudflared              Use Cloudflared tunnel
-  --ngrok                    Use Ngrok tunnel
-  --localtunnel              Use LocalTunnel tunnel
+  --serveo           Use Serveo tunnel
+  --cloudflared      Use Cloudflared tunnel
+  --ngrok            Use Ngrok tunnel
+  --localtunnel      Use LocalTunnel tunnel
 
 Script Management:
-  -u, --update               Update the script from GitHub.
-  -sl, --save-local          Save the script to /usr/local/bin
-  --clear-logs               Clear the log file.
+  -up, --update      Update the script from GitHub.
+  -sl, --save-local  Save the script to /usr/local/bin
+  -cl, --clear-logs  Clear the log file.
 
 
 Examples:
@@ -108,7 +107,8 @@ Examples:
    python3 exposerver.py -p 8001 -f ./my_local_file.txt   
    python3 exposerver.py -p 9095 -f payload.txt -s 
    python3 exposerver.py -p 8080 -d ./site --ngrok -t 600
-   python3 exposerver.py -cl 
+   python3 exposerver.py --clear-logs 
+
 
 ```
 
