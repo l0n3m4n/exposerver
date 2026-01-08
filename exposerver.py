@@ -164,7 +164,7 @@ def check_tunnel_dependencies(args):
     if args.serveo:
         require_binary("ssh", "sudo apt install openssh-client")
     elif args.cloudflared:
-        require_binary("cloudflared", "https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/install-and-setup/")
+        require_binary("cloudflared", "https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/downloads/")
     elif args.ngrok:
         require_binary("ngrok", "https://ngrok.com/download")
     elif args.localtunnel:
