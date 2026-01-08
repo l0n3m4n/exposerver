@@ -139,6 +139,10 @@ pip install pillow --break-system-packages
 # Run the script with the --save-local flag to install it to /usr/local/bin
 # This will also install all the required dependencies
 python3 exposerver.py --save-local
+
+# Recommended: manually installed deb packages  
+wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+sudo dpkg -i cloudflared-linux-amd64.deb
 ```
 
 ## 📡 Usage
