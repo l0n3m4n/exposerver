@@ -133,6 +133,9 @@ git clone https://github.com/l0n3m4n/exposerver.git
 # Navigate to the project directory
 cd exposerver
 
+# Install Pillow
+pip install pillow --break-system-packages
+
 # Run the script with the --save-local flag to install it to /usr/local/bin
 # This will also install all the required dependencies
 python3 exposerver.py --save-local
